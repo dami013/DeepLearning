@@ -33,21 +33,16 @@ def create_dataset(coeffs, z_range, sample_size, sigma, seed=42):
     # Set random seeds for reproducibility
     torch.manual_seed(seed)
     np.random.seed(seed)
-    
     # Unpack z_range
     z_min, z_max = z_range
-    
     # Generate evenly spaced z values
     z = torch.linspace(z_min, z_max, sample_size)
-    
     # Create the design matrix X
     X = torch.stack([z**i for i in range(len(coeffs))]).T
-    
     # Calculate y_hat (noiseless y)
     y_hat = X @ torch.tensor(coeffs, dtype=torch.float32)
-    
     # Add Gaussian noise to get y
-    noise = torch.normal(0, sigma, size=y_hat.shape)
+    noise = torch.normal(torch.zeros(sample_size), sigma*torch.ones(sample_size))
     y = y_hat + noise
     return X, y
 
@@ -244,8 +239,7 @@ if __name__ == "__main__":
         torch.manual_seed(seed)
         x_min, x_max = x_range
         X = torch.rand(sample_size) * (x_max - x_min) + x_min
-        y = f(X)
-        y += torch.normal(torch.zeros(sample_size), sigma*torch.ones(sample_size))
+        y = f(X) + torch.normal(torch.zeros(sample_size), sigma*torch.ones(sample_size))
         return X.reshape(-1, 1), y.reshape(-1, 1)
 
     def f(x):
@@ -282,8 +276,8 @@ if __name__ == "__main__":
     # Case 2: a = 10
     x_range2 = (-0.05, 10)
 
-    sample_size = 500
-    sigma = 0.1
+    sample_size = 1000 # 500
+    sigma = 0.01 # 0.1
 
     X_train1, y_train1 = create_dataset_log(f, x_range1, sample_size, sigma, seed=0)
     X_val1, y_val1 = create_dataset_log(f, x_range1, sample_size , sigma, seed=1)
