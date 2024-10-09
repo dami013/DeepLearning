@@ -276,8 +276,8 @@ if __name__ == "__main__":
     # Case 2: a = 10
     x_range2 = (-0.05, 10)
 
-    sample_size = 1000 # 500
-    sigma = 0.01 # 0.1
+    sample_size = 1000 
+    sigma = 0.5 
 
     X_train1, y_train1 = create_dataset_log(f, x_range1, sample_size, sigma, seed=0)
     X_val1, y_val1 = create_dataset_log(f, x_range1, sample_size , sigma, seed=1)
