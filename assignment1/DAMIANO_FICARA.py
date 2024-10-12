@@ -25,7 +25,8 @@ def plot_polynomial(coeffs, z_range, color='b'):
     plt.ylabel('p(z)')
     plt.title('Polynomial Function')
     plt.grid(True)
-    plt.show() 
+    plt.savefig("Q2.png")
+    plt.show()
 '''
 Code for Q3:
 '''    
@@ -72,6 +73,7 @@ def visualize_data(X, y, coeffs, z_range, title):
     
     # Adjust layout and display plot
     plt.tight_layout()
+    plt.savefig("Q5.png")
     plt.show()
 
 
@@ -112,7 +114,6 @@ if __name__ == "__main__":
     '''
     Code for Q4
     '''
-    ## Q4
     # Set di training
     X_train, y_train = create_dataset(coeffs, [-2, 2], 500, 0.5, seed=0)
 
@@ -126,8 +127,6 @@ if __name__ == "__main__":
     '''
     Code for Q6
     '''
-    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
-    print(DEVICE)
     model = nn.Linear(5, 1,False) 
     loss_fn = nn.MSELoss() 
     learning_rate = 0.01
@@ -140,7 +139,7 @@ if __name__ == "__main__":
     y_val = y_val.reshape(-1, 1)
     train_loss_vals = []
     val_loss_vals = []
-    pesi = []
+    weights = []
     n_steps = 600 # Number of updates of the gradient
     for step in range(n_steps):
         model.train() # Set the model in training mode
@@ -166,7 +165,7 @@ if __name__ == "__main__":
             val_loss_vals.append(loss_val.item())
             train_loss_vals.append(loss.item())
             # At every step, print the losses
-            pesi.append(model.weight.flatten().tolist())
+            weights.append(model.weight.flatten().tolist())
             print("Step:", step, "- Loss eval:", loss_val.item())
             # Do also a very simple plot
 
@@ -180,6 +179,7 @@ if __name__ == "__main__":
     plt.legend(["Training loss", "Validation loss"])
     plt.xlabel("Steps")
     plt.ylabel("Loss value")
+    plt.savefig("Q7.png")
     plt.show()
     print("Training done, with an evaluation loss of {}".format(loss_val.item()))
     '''
@@ -200,6 +200,7 @@ if __name__ == "__main__":
     plt.xlabel('z')
     plt.ylabel('p(z)')
     plt.legend()
+    plt.savefig("Q8.png")
     plt.show()
     '''
     Code for Q9
@@ -209,7 +210,7 @@ if __name__ == "__main__":
     labels = [f'w{i}' for i in range(5)]
 
     # Convert weight list to numpy array
-    weight_array = np.array(pesi)
+    weight_array = np.array(weights)
 
     # Function to plot weights and true values
     def plot_weights(weights, true_values, n_steps, colors, labels):
@@ -229,7 +230,7 @@ if __name__ == "__main__":
     plt.ylabel('Parameter Value')  # Label for y-axis
     plt.title('Evolution of Parameters During Training')  # Title of the plot
     plt.legend()  # Show legend
-
+    plt.savefig("Q9.png")
     # Display the plot
     plt.show()
     '''
@@ -310,6 +311,7 @@ if __name__ == "__main__":
     plt.legend()
 
     plt.tight_layout()
+    plt.savefig("QB1.png")
     plt.show()
 
     # Plotting the true function and linear approximations
@@ -320,7 +322,7 @@ if __name__ == "__main__":
     plt.subplot(1, 2, 1)
     plt.scatter(X_train1, y_train1, alpha=0.5, label='Training Data')
     plt.plot(x1, f(x1), 'r-', label='True Function')
-    plt.plot(x1, model1(x1).detach(), 'g--', label='Linear Approximation')
+    plt.plot(x1, model1(x1).detach(), 'black', linestyle='--', label='Linear Approximation')
     plt.title('Case 1: a = 0.01')
     plt.xlabel('x')
     plt.ylabel('y')
@@ -329,11 +331,12 @@ if __name__ == "__main__":
     plt.subplot(1, 2, 2)
     plt.scatter(X_train2, y_train2, alpha=0.5, label='Training Data')
     plt.plot(x2, f(x2), 'r-', label='True Function')
-    plt.plot(x2, model2(x2).detach(), 'g--', label='Linear Approximation')
+    plt.plot(x2, model2(x2).detach(), 'black', linestyle='--', label='Linear Approximation')
     plt.title('Case 2: a = 10')
     plt.xlabel('x')
     plt.ylabel('y')
     plt.legend()
 
     plt.tight_layout()
+    plt.savefig("QB2.png")
     plt.show()
