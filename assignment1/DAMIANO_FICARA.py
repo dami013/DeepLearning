@@ -205,33 +205,19 @@ if __name__ == "__main__":
     '''
     Code for Q9
     '''
-    # Define colors and labels
     colors = ['blue', 'orange', 'green', 'red', 'gray']
-    labels = [f'w{i}' for i in range(5)]
-
-    # Convert weight list to numpy array
+    weight_labels = [f'Weight {i}' for i in range(5)]  # Formal term for weights
     weight_array = np.array(weights)
-
-    # Function to plot weights and true values
-    def plot_weights(weights, true_values, n_steps, colors, labels):
-        # Loop over weights, true values, colors, and labels to plot
-        for i, (weight, true_value, color, label) in enumerate(zip(weights.T, true_values, colors, labels)):
-            # Plot the weights for each parameter
-            plt.plot(np.arange(n_steps), weight, label=f'{label}', color=color)
-            # Plot the true value as a horizontal dashed line
-            plt.axhline(y=true_value, linestyle='--', label=f'True {label}', color=color)
-
-    # Plot the weights
-    plt.figure(figsize=(10, 6))  # Set figure size
-    plot_weights(weight_array, coeffs, n_steps, colors, labels)  # Call the plot function
-
-    # Add labels, title, and legend
-    plt.xlabel('Steps')  # Label for x-axis
-    plt.ylabel('Parameter Value')  # Label for y-axis
-    plt.title('Evolution of Parameters During Training')  # Title of the plot
-    plt.legend()  # Show legend
+    plt.figure(figsize=(10, 6))
+    for i in range(5):
+        plt.plot(np.arange(n_steps), weight_array[:, i], label=weight_labels[i], color=colors[i], linewidth=2)
+        plt.axhline(y=coeffs[i], linestyle='--', label=f'True {weight_labels[i]}', color=colors[i], linewidth=1.5)
+    plt.xlabel('Training Steps')
+    plt.ylabel('Weight Value')
+    plt.title('Evolution of Weights During Training')
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5), ncol=1, fontsize=10, title="Weights", frameon=True)
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
     plt.savefig("Q9.png")
-    # Display the plot
     plt.show()
     '''
     Code for Bonus
@@ -246,7 +232,7 @@ if __name__ == "__main__":
     def f(x):
         return 2 * torch.log(x + 1) + 3
 
-    def train_and_evaluate(X_train, y_train, X_val, y_val, learning_rate=0.01, n_steps=600):
+    def train_and_evaluate(X_train, y_train, X_val, y_val, learning_rate=0.01, n_steps=1000):
         model = nn.Linear(1, 1)
         loss_fn = nn.MSELoss()
         optimizer = optim.SGD(model.parameters(), lr=learning_rate)
