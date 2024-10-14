@@ -2,21 +2,19 @@
 Template for Assignment 1
 '''
 
-import numpy as np # Is it version 2.1 the one you are running?
+import numpy as np 
 import matplotlib.pyplot as plt 
-import torch # Is it version 2.4 the one you are running?
+import torch 
 import torch.nn as nn
 import torch.optim as optim
 import os
 '''
 Code for Q2
 '''
-## Q2
 def plot_polynomial(coeffs, z_range, color='b'):
     z_min, z_max = z_range
     z = np.linspace(z_min, z_max)
-    
-    # Calcola i valori del polinomio
+
     y = np.polyval(coeffs[::-1], z)
     
     plt.figure(figsize=(10, 6))
@@ -56,22 +54,12 @@ def visualize_data(X, y, coeffs, z_range, title):
     
     # Plot true polynomial
     ax.plot(z, y_true, color='r', label='True Polynomial', linewidth=2)
-    
-    # Scatter plot of generated data
     ax.scatter(X[:, 1], y, alpha=0.5, label='Generated Data', color='b', edgecolor='k')
-    
-    # Set labels and title
     ax.set_xlabel('z', fontsize=12)
     ax.set_ylabel('p(z)', fontsize=12)
     ax.set_title(title, fontsize=14, fontweight='bold')
-    
-    # Add legend
     ax.legend(fontsize=10)
-    
-    # Customize grid
     ax.grid(True, linestyle='--', alpha=0.7)
-    
-    # Adjust layout and display plot
     plt.tight_layout()
     plt.savefig("Q5.png")
     plt.show()
@@ -114,10 +102,10 @@ if __name__ == "__main__":
     '''
     Code for Q4
     '''
-    # Set di training
+    # Training
     X_train, y_train = create_dataset(coeffs, [-2, 2], 500, 0.5, seed=0)
 
-    # Set di validazione
+    # Validation
     X_val, y_val = create_dataset(coeffs, [-2, 2], 500, 0.5, seed=1)
     '''
     Code for Q5
@@ -206,7 +194,7 @@ if __name__ == "__main__":
     Code for Q9
     '''
     colors = ['blue', 'orange', 'green', 'red', 'gray']
-    weight_labels = [f'Weight {i}' for i in range(5)]  # Formal term for weights
+    weight_labels = [f'Weight {i}' for i in range(5)] 
     weight_array = np.array(weights)
     plt.figure(figsize=(10, 6))
     for i in range(5):
