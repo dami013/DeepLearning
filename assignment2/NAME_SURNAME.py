@@ -1,18 +1,26 @@
 '''
 Assignment 2
-Student: NAME SURNAME
+Student: Damiano Ficara
 '''
 
 # *** Packages ***
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.datasets as datasets
+from torchvision import transforms
+import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+import torch.optim as optim
+from math import floor as m
 
 def out_dimensions(conv_layer, h_in, w_in):
     '''
     This function computes the output dimension of each convolutional layers in the most general way. 
     '''
-    h_out = floor((h_in + 2 * conv_layer.padding[0] - conv_layer.dilation[0] * (conv_layer.kernel_size[0] - 1) - 1) /
+    h_out = m.floor((h_in + 2 * conv_layer.padding[0] - conv_layer.dilation[0] * (conv_layer.kernel_size[0] - 1) - 1) /
                   conv_layer.stride[0] + 1)
-    w_out = floor((w_in + 2 * conv_layer.padding[1] - conv_layer.dilation[1] * (conv_layer.kernel_size[1] - 1) - 1) /
+    w_out = m.floor((w_in + 2 * conv_layer.padding[1] - conv_layer.dilation[1] * (conv_layer.kernel_size[1] - 1) - 1) /
                   conv_layer.stride[1] + 1)
     return h_out, w_out
     
@@ -30,7 +38,7 @@ class CNN(nn.Module):
         self.fc1 = nn.Linear(32 * h_out * w_out, 10) # What does 32 represent?
         # You can add one fully connected layer. What do you have to change?
         self.dimensions_final = (32, h_out, w_out)
-​
+
     def forward(self, x):
         x = self.conv1(x)
         x = self.conv2(x)
