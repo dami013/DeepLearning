@@ -8,7 +8,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.datasets as datasets
-import torchvision
 import numpy as np
 from torchvision import transforms
 import matplotlib.pyplot as plt
@@ -25,6 +24,8 @@ def out_dimensions(conv_layer, h_in, w_in):
     w_out = floor((w_in + 2 * conv_layer.padding[1] - conv_layer.dilation[1] * (conv_layer.kernel_size[1] - 1) - 1) /
                   conv_layer.stride[1] + 1)
     return h_out, w_out
+
+
 if __name__ == "__main__":
     # Write your code here
     print("Hello World!")
@@ -52,8 +53,8 @@ transform = transforms.Compose(
 
 batch_size = 32
 
-dataset_train = datasets.CIFAR10(root='./data', train=True,download=True, transform=transform)
-dataset_test = datasets.CIFAR10(root='./data', train=False,download=True, transform=transform)
+dataset_train = datasets.CIFAR10(root='assignment2/data', train=True,download=True, transform=transform)
+dataset_test = datasets.CIFAR10(root='assignment2/data', train=False,download=True, transform=transform)
 
 trainloader = DataLoader(dataset_train, batch_size=batch_size,shuffle=True, num_workers=2)
 testloader = DataLoader(dataset_test, batch_size=batch_size, shuffle=False, num_workers=2)
