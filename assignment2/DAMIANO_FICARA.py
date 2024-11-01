@@ -120,10 +120,11 @@ if __name__ == "__main__":
     validloader = DataLoader(dataset_validation, batch_size=batch_size)
     testloader = DataLoader(dataset_test, batch_size=batch_size)
 
-    num_steps_per_epoch = len(trainloader)
-    print(f"Numero di step per epoca: {num_steps_per_epoch}")
-    a = len(validloader)
-    print(f"Numero di step per epoca: {a}")
+    total_train_batches = len(trainloader)
+    print(f"Numero di batch per epoca (training): {total_train_batches}")
+
+    total_valid_batches = len(validloader)
+    print(f"Numero di batch per epoca (validation): {total_valid_batches}")
 
 
 
