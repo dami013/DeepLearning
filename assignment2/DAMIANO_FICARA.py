@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from math import floor
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 import copy
     
-# Template class for Early Stopping
+
 class EarlyStopping():
+    """Simple early stopping implementation to prevent model overfitting"""
     def __init__(self, patience=5, min_delta=0, restore_best_weights=True):
         self.patience = patience
         self.min_delta = min_delta # minimum improvement to reset patience
@@ -52,9 +52,6 @@ if __name__ == "__main__":
     torch.cuda.manual_seed(manual_seed) # for CUDA
     torch.backends.cudnn.deterministic = True # for CUDNN
     torch.backends.benchmark = False # if True, causes cuDNN to benchmark multiple convolution algorithms and select the fastest.
-
-
-    torch.randint(1, 10 , (1,1))
 
     '''
     Q2 - Code
@@ -106,6 +103,7 @@ if __name__ == "__main__":
         plt.axis('off')
     plt.suptitle('One Sample per class', fontsize=14, y=1.0)
     plt.tight_layout()
+    plt.savefig('img1.png')
     plt.show()
 
     # Conta le istanze nel training set e test set
@@ -124,13 +122,17 @@ if __name__ == "__main__":
     plt.figure(figsize=(12, 6))
     x = np.arange(len(classes))
     width = 0.35
+
     plt.bar(x - width / 2, train_dist, width, label='Training Set', color='#2ecc71', alpha=0.8, edgecolor='black')
     plt.bar(x + width / 2, test_dist, width, label='Test Set', color='#3498db', alpha=0.8, edgecolor='black')
+
     plt.xlabel('Classes', fontsize=12)
     plt.ylabel('Images Number', fontsize=12)
     plt.title('Distribution of Images in Training and Test Sets', fontsize=14)
     plt.xticks(x, classes, rotation=45)
-    plt.legend()
+
+    # Position the legend outside the plot area
+    plt.legend(loc='upper left', bbox_to_anchor=(1, 1))  # Adjust this as needed for positioning
 
     # Aggiungi etichette sulle barre
     for i in range(len(x)):
@@ -138,6 +140,7 @@ if __name__ == "__main__":
         plt.text(x[i] + width / 2, test_dist[i], str(test_dist[i]), ha='center', va='bottom')
 
     plt.tight_layout()
+    plt.savefig('img2.png')
     plt.show()
 
 
@@ -157,11 +160,10 @@ if __name__ == "__main__":
     total_valid_batches = len(validloader)
     print(f"Numero di batch per epoca (validation): {total_valid_batches}")
 
-
-
-
     
-
+    '''
+    Q6 - Code
+    '''
     def out_dimensions(conv_layer, h_in, w_in):
         """Calculate output dimensions after convolution"""
         h_out = floor((h_in + 2 * conv_layer.padding[0] - 
@@ -335,6 +337,7 @@ if __name__ == "__main__":
     plt.legend(["Train loss", "Validation Loss"])
     plt.xlabel("Epochs")
     plt.ylabel("Loss value")
+    plt.savefig('img3.png')
     plt.show()
 
     '''
@@ -486,6 +489,7 @@ if __name__ == "__main__":
     plt.legend(["Train loss", "Validation Loss"])
     plt.xlabel("Epochs")
     plt.ylabel("Loss value")
+    plt.savefig('img4.png')
     plt.show()
 
     test_accuracies = []  # To store test accuracies for each seed
