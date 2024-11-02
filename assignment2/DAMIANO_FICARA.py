@@ -13,14 +13,45 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from math import floor
-
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+import copy
     
-    
+# Template class for Early Stopping
+class EarlyStopping():
+    def __init__(self, patience=5, min_delta=0, restore_best_weights=True):
+        self.patience = patience
+        self.min_delta = min_delta # minimum improvement to reset patience
+        self.restore_best_weights = restore_best_weights
+        self.best_model = None
+        self.best_loss = None
+        self.counter = 0
+        self.status = ""
+        
+    def __call__(self, model, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+            self.best_model = copy.deepcopy(model)
+        elif self.best_loss - val_loss > self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
+            self.best_model.load_state_dict(model.state_dict())
+        elif self.best_loss - val_loss < self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.status = f"Stopped on {self.counter}"
+                if self.restore_best_weights:
+                    model.load_state_dict(self.best_model.state_dict())
+                return True
+        self.status = f"{self.counter}/{self.patience}"
+        return False
 
 if __name__ == "__main__":
     # Set the seed for reproducibility   
     manual_seed = 42
     torch.manual_seed(manual_seed)
+    torch.cuda.manual_seed(manual_seed) # for CUDA
+    torch.backends.cudnn.deterministic = True # for CUDNN
+    torch.backends.benchmark = False # if True, causes cuDNN to benchmark multiple convolution algorithms and select the fastest.
 
 
     torch.randint(1, 10 , (1,1))
@@ -313,40 +344,40 @@ if __name__ == "__main__":
         def __init__(self):
             super(CCNSuperSayanGod, self).__init__()
             # First convolutional block
-            self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn1 = nn.BatchNorm2d(64)
+            self.conv1 = nn.Conv2d(in_channels=3, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn1 = nn.BatchNorm2d(128)
             h_out, w_out = out_dimensions(self.conv1, 32, 32)
-            self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn2 = nn.BatchNorm2d(64)
+            self.conv2 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn2 = nn.BatchNorm2d(128)
             h_out, w_out = out_dimensions(self.conv2, h_out, w_out)
             self.pool1 = nn.MaxPool2d(2, 2)
-            self.dropout1 = nn.Dropout(0.2)  # Aggiunto dropout dopo il primo blocco
+            self.dropout1 = nn.Dropout(0.1)  # Ridotto dropout
             h_out, w_out = int(h_out / 2), int(w_out / 2)
 
             # Second convolutional block
-            self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn3 = nn.BatchNorm2d(128)
+            self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn3 = nn.BatchNorm2d(256)
             h_out, w_out = out_dimensions(self.conv3, h_out, w_out)
-            self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn4 = nn.BatchNorm2d(128)
+            self.conv4 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn4 = nn.BatchNorm2d(256)
             h_out, w_out = out_dimensions(self.conv4, h_out, w_out)
             self.pool2 = nn.MaxPool2d(2, 2)
-            self.dropout2 = nn.Dropout(0.2)  # Aggiunto dropout dopo il secondo blocco
+            self.dropout2 = nn.Dropout(0.1)  # Ridotto dropout
             h_out, w_out = int(h_out / 2), int(w_out / 2)
 
             # Fully connected layers
-            self.fc1 = nn.Linear(128 * h_out * w_out, 512)  # Aumentato a 512
+            self.fc1 = nn.Linear(256 * h_out * w_out, 512)
             self.bn5 = nn.BatchNorm1d(512)
-            self.dropout3 = nn.Dropout(0.4)  # Aumentato dropout
+            self.dropout3 = nn.Dropout(0.2)  # Ridotto dropout
             
-            self.fc2 = nn.Linear(512, 128)  # Aumentato a 128
+            self.fc2 = nn.Linear(512, 128)
             self.bn6 = nn.BatchNorm1d(128)
-            self.dropout4 = nn.Dropout(0.4)  # Aumentato dropout
+            self.dropout4 = nn.Dropout(0.2)  # Ridotto dropout
             
             self.fc3 = nn.Linear(128, 10)
 
             # Store final dimensions for reshape
-            self.dimensions_final = (128, h_out, w_out)
+            self.dimensions_final = (256, h_out, w_out)
 
         def forward(self, x):
             # First block
@@ -357,7 +388,7 @@ if __name__ == "__main__":
             x = self.bn2(x)
             x = F.gelu(x)
             x = self.pool1(x)
-            x = self.dropout1(x)  # Aggiunto dropout
+            x = self.dropout1(x)
 
             # Second block
             x = self.conv3(x)
@@ -367,7 +398,7 @@ if __name__ == "__main__":
             x = self.bn4(x)
             x = F.gelu(x)
             x = self.pool2(x)
-            x = self.dropout2(x)  # Aggiunto dropout
+            x = self.dropout2(x)
 
             # Flatten and FC layers
             n_channels, h, w = self.dimensions_final
@@ -388,19 +419,17 @@ if __name__ == "__main__":
 
 
     model = CCNSuperSayanGod()
-    learning_rate = 0.031
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate,  weight_decay=1e-4) 
-    #scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3)
+    learning_rate = 0.032  # Aumentato learning rate
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
+    early_stop = EarlyStopping(patience=4, min_delta = 0.0001)
     loss_fn = nn.CrossEntropyLoss()
-
-
 
     model = model.to(DEVICE)
     print("Working on", DEVICE)
 
     train_loss_list = []
     validation_loss_list = []
-    n_epochs = 7
+    n_epochs = 15  # Aumentato numero di epoche
 
     for epoch in range(n_epochs):
         loss_train = 0
@@ -420,7 +449,7 @@ if __name__ == "__main__":
             # Update parameters
             optimizer.step()
             
-        loss_train = loss_train / len(trainloader) # Consider this alternative method of tracking training loss. 
+        loss_train = loss_train / len(trainloader)
         train_loss_list.append(loss_train)
         
         # At the end of every epoch, check the validation loss value
@@ -434,11 +463,11 @@ if __name__ == "__main__":
                 validation_loss = loss_fn(output, target).item()
             print(f"Epoch {epoch + 1}: Train loss: {loss_train}, Validation loss {validation_loss}")
             validation_loss_list.append(validation_loss)
-            #scheduler.step(validation_loss)
-
-
-
-
+        if early_stop(model, validation_loss):
+            print(f"Stopped trained at Epoch {epoch + 1}")
+            break
+    
+    
     with torch.no_grad():
         n_correct = 0
         n_samples = 0
@@ -452,20 +481,13 @@ if __name__ == "__main__":
         acc = 100.0 * n_correct / n_samples
     print("Accuracy on the test set:", acc, "%")
 
-
-
     plt.figure()
-    plt.plot(range(n_epochs), train_loss_list)
-    plt.plot(range(n_epochs), validation_loss_list)
+    plt.plot(range(len(train_loss_list)), train_loss_list)
+    plt.plot(range(len(validation_loss_list)), validation_loss_list)
     plt.legend(["Train loss", "Validation Loss"])
     plt.xlabel("Epochs")
     plt.ylabel("Loss value")
     plt.show()
-
-
-
-    
-    print("Working on", DEVICE)
 
     test_accuracies = []  # To store test accuracies for each seed
     '''
