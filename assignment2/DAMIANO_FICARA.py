@@ -344,40 +344,40 @@ if __name__ == "__main__":
         def __init__(self):
             super(CCNSuperSayanGod, self).__init__()
             # First convolutional block
-            self.conv1 = nn.Conv2d(in_channels=3, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn1 = nn.BatchNorm2d(128)
+            self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn1 = nn.BatchNorm2d(64)
             h_out, w_out = out_dimensions(self.conv1, 32, 32)
-            self.conv2 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn2 = nn.BatchNorm2d(128)
+            self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn2 = nn.BatchNorm2d(64)
             h_out, w_out = out_dimensions(self.conv2, h_out, w_out)
             self.pool1 = nn.MaxPool2d(2, 2)
-            self.dropout1 = nn.Dropout(0.1)  # Ridotto dropout
+            self.dropout1 = nn.Dropout(0.2)  # Aggiunto dropout dopo il primo blocco
             h_out, w_out = int(h_out / 2), int(w_out / 2)
 
             # Second convolutional block
-            self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn3 = nn.BatchNorm2d(256)
+            self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn3 = nn.BatchNorm2d(128)
             h_out, w_out = out_dimensions(self.conv3, h_out, w_out)
-            self.conv4 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding=1, stride=1)
-            self.bn4 = nn.BatchNorm2d(256)
+            self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
+            self.bn4 = nn.BatchNorm2d(128)
             h_out, w_out = out_dimensions(self.conv4, h_out, w_out)
             self.pool2 = nn.MaxPool2d(2, 2)
-            self.dropout2 = nn.Dropout(0.1)  # Ridotto dropout
+            self.dropout2 = nn.Dropout(0.2)  # Aggiunto dropout dopo il secondo blocco
             h_out, w_out = int(h_out / 2), int(w_out / 2)
 
             # Fully connected layers
-            self.fc1 = nn.Linear(256 * h_out * w_out, 512)
+            self.fc1 = nn.Linear(128 * h_out * w_out, 512)  # Aumentato a 512
             self.bn5 = nn.BatchNorm1d(512)
-            self.dropout3 = nn.Dropout(0.2)  # Ridotto dropout
+            self.dropout3 = nn.Dropout(0.4)  # Aumentato dropout
             
-            self.fc2 = nn.Linear(512, 128)
+            self.fc2 = nn.Linear(512, 128)  # Aumentato a 128
             self.bn6 = nn.BatchNorm1d(128)
-            self.dropout4 = nn.Dropout(0.2)  # Ridotto dropout
+            self.dropout4 = nn.Dropout(0.4)  # Aumentato dropout
             
             self.fc3 = nn.Linear(128, 10)
 
             # Store final dimensions for reshape
-            self.dimensions_final = (256, h_out, w_out)
+            self.dimensions_final = (128, h_out, w_out)
 
         def forward(self, x):
             # First block
@@ -388,7 +388,7 @@ if __name__ == "__main__":
             x = self.bn2(x)
             x = F.gelu(x)
             x = self.pool1(x)
-            x = self.dropout1(x)
+            x = self.dropout1(x)  # Aggiunto dropout
 
             # Second block
             x = self.conv3(x)
@@ -398,7 +398,7 @@ if __name__ == "__main__":
             x = self.bn4(x)
             x = F.gelu(x)
             x = self.pool2(x)
-            x = self.dropout2(x)
+            x = self.dropout2(x)  # Aggiunto dropout
 
             # Flatten and FC layers
             n_channels, h, w = self.dimensions_final
@@ -417,11 +417,10 @@ if __name__ == "__main__":
             x = self.fc3(x)
             return x
 
-
     model = CCNSuperSayanGod()
     learning_rate = 0.032  # Aumentato learning rate
     optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=1e-4)
-    early_stop = EarlyStopping(patience=4, min_delta = 0.0001)
+    early_stop = EarlyStopping(patience=2, min_delta=0.01)
     loss_fn = nn.CrossEntropyLoss()
 
     model = model.to(DEVICE)
