@@ -16,7 +16,7 @@ from math import floor
 import copy
     
 '''
-Q6 - Code for Q6
+Q6 - Classes and functions for Q6
 '''
 def out_dimensions(conv_layer, h_in, w_in):
         """Calculate output dimensions after convolution"""
@@ -75,7 +75,7 @@ class CCNSuperSayan(nn.Module):
         x = self.fc2(x)
         return x
 '''
-Q9 - Code for Q9
+Q9 - Classes for Q9
 '''
 class EarlyStopping():
     """Simple early stopping implementation to prevent model overfitting"""
@@ -108,9 +108,6 @@ class EarlyStopping():
                 return True
         self.status = f"{self.counter}/{self.patience}"
         return False
-'''
-    Q9 - Code
-'''
 # Define the CCNSuperSayanGod model with additional regularization and BatchNorm
 class CCNSuperSayanGod(nn.Module):
     def __init__(self):
