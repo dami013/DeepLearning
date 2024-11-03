@@ -386,12 +386,7 @@ if __name__ == "__main__":
                         validation_loss_list.append(avg_valid_loss)
                         validation_accuracy_list.append(valid_accuracy)
 
-
-
-    '''
-    Q8 - Code
-    '''
-    # Evaluate the model on the test set
+        # Evaluate the model on the test set
     with torch.no_grad():
         n_correct = 0
         n_samples = 0
@@ -405,6 +400,9 @@ if __name__ == "__main__":
         acc = 100.0 * n_correct / n_samples
     print("Accuracy on the test set:", acc, "%")
 
+    '''
+    Q8 - Code
+    '''
     # Plot train and validation loss over epochs
     plt.figure()
     plt.plot(range(n_epochs), train_loss_list)
@@ -414,8 +412,6 @@ if __name__ == "__main__":
     plt.ylabel("Loss value")
     plt.savefig('img3.png')
     plt.show()
-
-
     '''
     Q9 - Code
     '''
@@ -493,10 +489,11 @@ if __name__ == "__main__":
     plt.savefig('img4.png')
     plt.show()
 
-    test_accuracies = []  # To store test accuracies for each seed
     '''
     Q10 -  Code
     '''
+    
+    test_accuracies = []  # To store test accuracies for each seed
     # Loop over different seeds
     for seed in range(5, 10):
         torch.manual_seed(seed)
