@@ -85,95 +85,49 @@ class CNNBasic(nn.Module):
 '''
 Q9 - Advanced model implementations
 '''
-class EarlyStopping():
-    """Tracks validation loss to stop training when not improving"""
-    def __init__(self, patience=5, min_delta=0, restore_best_weights=True):
-        self.patience = patience  # Number of epochs to wait
-        self.min_delta = min_delta  # Minimum improvement required
-        self.restore_best_weights = restore_best_weights
-        self.best_model = None
-        self.best_loss = None
-        self.counter = 0
-        self.status = ""
-        
-    def __call__(self, model, val_loss):
-        # First time initialization
-        if self.best_loss is None:
-            self.best_loss = val_loss
-            self.best_model = copy.deepcopy(model)
-        # Loss improved
-        elif self.best_loss - val_loss > self.min_delta:
-            self.best_loss = val_loss
-            self.counter = 0
-            self.best_model.load_state_dict(model.state_dict())
-        # Loss didn't improve
-        elif self.best_loss - val_loss < self.min_delta:
-            self.counter += 1
-            if self.counter >= self.patience:
-                self.status = f"Stopped on {self.counter}"
-                if self.restore_best_weights:
-                    model.load_state_dict(self.best_model.state_dict())
-                return True
-        self.status = f"{self.counter}/{self.patience}"
-        return False
-
 class CNNPro(nn.Module):
-    """Advanced CNN with batch normalization and dropout"""
+    """
+    CNN for image classification with 2 conv blocks and 3 fully connected layers
+    Input: 32x32 RGB images
+    Output: 10 classes
+    """
     def __init__(self):
         super(CNNPro, self).__init__()
-        
-        # First block with batch norm
+        # First conv block: 3->64 channels
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=(3, 3), padding=1, stride=1)
         self.bn1 = nn.BatchNorm2d(64)
         h_out, w_out = out_dimensions(self.conv1, 32, 32)
-        
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), padding=1, stride=1)
         self.bn2 = nn.BatchNorm2d(64)
         h_out, w_out = out_dimensions(self.conv2, h_out, w_out)
-        
         self.pool1 = nn.MaxPool2d(2, 2)
-        self.dropout1 = nn.Dropout(0.2)
-        h_out, w_out = int(h_out/2), int(w_out/2)
+        self.dropout1 = nn.Dropout(0.1)  
+        h_out, w_out = int(h_out / 2), int(w_out / 2)
 
-        # Second block with batch norm
+        # Second conv block: 64->128 channels
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
         self.bn3 = nn.BatchNorm2d(128)
         h_out, w_out = out_dimensions(self.conv3, h_out, w_out)
-        
         self.conv4 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1, stride=1)
         self.bn4 = nn.BatchNorm2d(128)
         h_out, w_out = out_dimensions(self.conv4, h_out, w_out)
-        
         self.pool2 = nn.MaxPool2d(2, 2)
-        self.dropout2 = nn.Dropout(0.2)
-        h_out, w_out = int(h_out/2), int(w_out/2)
+        self.dropout2 = nn.Dropout(0.1)
+        h_out, w_out = int(h_out / 2), int(w_out / 2)
 
-        # Third block with batch norm
-        self.conv5 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(3, 3), padding=1, stride=1)
-        self.bn5 = nn.BatchNorm2d(256)
-        h_out, w_out = out_dimensions(self.conv5, h_out, w_out)
-        
-        self.conv6 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=(3, 3), padding=1, stride=1)
-        self.bn6 = nn.BatchNorm2d(256)
-        h_out, w_out = out_dimensions(self.conv6, h_out, w_out)
-        
-        self.pool3 = nn.MaxPool2d(2, 2)
-        self.dropout3 = nn.Dropout(0.2)
-        h_out, w_out = int(h_out/2), int(w_out/2)
-
-        # FC layers with batch norm
-        self.fc1 = nn.Linear(256 * h_out * w_out, 512)
-        self.bn7 = nn.BatchNorm1d(512)
-        self.dropout4 = nn.Dropout(0.4)
+        # Fully connected layers
+        self.fc1 = nn.Linear(128 * h_out * w_out, 512)
+        self.bn5 = nn.BatchNorm1d(512)
+        self.dropout3 = nn.Dropout(0.4)
         self.fc2 = nn.Linear(512, 128)
-        self.bn8 = nn.BatchNorm1d(128)
-        self.dropout5 = nn.Dropout(0.4)
+        self.bn6 = nn.BatchNorm1d(128)
+        self.dropout4 = nn.Dropout(0.4)
         self.fc3 = nn.Linear(128, 10)
-        
-        self.dimensions_final = (256, h_out, w_out)
+
+        self.dimensions_final = (128, h_out, w_out)
 
     def forward(self, x):
-        # Process first block
+        # First conv block
         x = self.conv1(x)
         x = self.bn1(x)
         x = F.gelu(x)
@@ -183,7 +137,7 @@ class CNNPro(nn.Module):
         x = self.pool1(x)
         x = self.dropout1(x)
 
-        # Process second block
+        # Second conv block
         x = self.conv3(x)
         x = self.bn3(x)
         x = F.gelu(x)
@@ -193,29 +147,18 @@ class CNNPro(nn.Module):
         x = self.pool2(x)
         x = self.dropout2(x)
 
-        # Process third block
-        x = self.conv5(x)
-        x = self.bn5(x)
-        x = F.gelu(x)
-        x = self.conv6(x)
-        x = self.bn6(x)
-        x = F.gelu(x)
-        x = self.pool3(x)
-        x = self.dropout3(x)
-
-        # Process FC layers
+        # FC layers
         n_channels, h, w = self.dimensions_final
         x = x.view(-1, n_channels * h * w)
         x = self.fc1(x)
-        x = self.bn7(x)
+        x = self.bn5(x)
+        x = F.gelu(x)
+        x = self.dropout3(x)
+        x = self.fc2(x)
+        x = self.bn6(x)
         x = F.gelu(x)
         x = self.dropout4(x)
-        x = self.fc2(x)
-        x = self.bn8(x)
-        x = F.gelu(x)
-        x = self.dropout5(x)
         x = self.fc3(x)
-        
         return x
     
 if __name__ == "__main__":
@@ -447,16 +390,16 @@ if __name__ == "__main__":
     '''
     # Setup advanced model
     model = CNNPro()
-    learning_rate = 0.034
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate,momentum=0.9, weight_decay=1e-4)
-    early_stop = EarlyStopping(patience=2, min_delta=0.01)
+    learning_rate = 0.031
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate,weight_decay=1e-4)
     loss_fn = nn.CrossEntropyLoss()
+    DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
     model = model.to(DEVICE)
     print("Working on", DEVICE)
 
     train_loss_list = []
     validation_loss_list = []
-    n_epochs = 15
+    n_epochs = 7
 
     # Training loop with early stopping
     for epoch in range(n_epochs):
@@ -486,9 +429,6 @@ if __name__ == "__main__":
             print(f"Epoch {epoch + 1}: Train loss: {loss_train}, Validation loss {validation_loss}")
             validation_loss_list.append(validation_loss)
             
-        if early_stop(model, validation_loss):
-            print(f"Stopped training at Epoch {epoch + 1}")
-            break
     
     # Final evaluation
     with torch.no_grad():
