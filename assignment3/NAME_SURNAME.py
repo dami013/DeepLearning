@@ -6,6 +6,10 @@ import torch
 from datasets import load_dataset
 
 
+def keys_to_values(keys, map, default_if_missing=None):
+    return [map.get(key, default_if_missing) for key in keys]
+
+
 # Set the seed
 seed = 42
 torch.manual_seed(seed)
@@ -13,6 +17,7 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed) # for CUDA
 torch.backends.cudnn.deterministic = True # for CUDNN
 torch.backends.benchmark = False # if True, causes cuDNN to benchmark multiple convolution algorithms and select the fastest.
+
 
 
 if __name__ == "__main__":
