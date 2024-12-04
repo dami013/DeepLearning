@@ -14,13 +14,7 @@ from torch import optim
 from torch.functional import F
 
 
-# Set random seed for reproducibility
-seed = 42
-torch.manual_seed(seed)
-# Probably, this below must be changed if you work with a M1/M2/M3 Mac
-torch.cuda.manual_seed(seed) # for CUDA
-torch.backends.cudnn.deterministic = True # for CUDNN
-torch.backends.benchmark = False # if True, causes cuDNN to benchmark multiple convolution algorithms and select the fastest.
+
 
 
 def keys_to_values(keys, map, default_if_missing=None):
@@ -58,7 +52,6 @@ class NewsSDataset(Dataset):
             torch.tensor(sequence[:-1]),  # Input sequence for model
             torch.tensor(sequence[1:])    # Target sequence for prediction
         )
-
 def collate_fn(batch, pad_value):
     """
     Pads sequences in batch to same length for efficient processing
@@ -74,8 +67,6 @@ def collate_fn(batch, pad_value):
     y_padded = pad_sequence(y_seqs, batch_first=True, padding_value=pad_value)
     
     return x_padded, y_padded
-
-
 '''
 Q7 - LSTM Model Implementation
 '''
@@ -370,6 +361,13 @@ def plot_metrics(loss_hist, perplexity_hist, title_prefix=""):
 
 
 if __name__ == "__main__":
+    # Set random seed for reproducibility
+    seed = 42
+    torch.manual_seed(seed)
+    # Probably, this below must be changed if you work with a M1/M2/M3 Mac
+    torch.cuda.manual_seed(seed) # for CUDA
+    torch.backends.cudnn.deterministic = True # for CUDNN
+    torch.backends.benchmark = False # if True, causes cuDNN to benchmark multiple convolution algorithms and select the fastest.
     # Set device based on available hardware
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'mps' 
         if torch.backends.mps.is_available() else 'cpu')
@@ -378,7 +376,8 @@ if __name__ == "__main__":
     Q1 - Load the news category dataset
     '''
     ds = load_dataset("heegyu/news-category-dataset")
-
+    print(ds['train'])
+    print(ds['train'].column_names)
     '''
     Q2 - Filter dataset to only include POLITICS category
     '''
@@ -487,11 +486,11 @@ if __name__ == "__main__":
     Initialize and train model using TBPTT
     '''
     # Create new model with larger hidden size for TBPTT
-    model2 = Model(word_to_int, hidden_size=2048).to(DEVICE)
+    model_tbtt = Model(word_to_int, hidden_size=2048).to(DEVICE)
     model2, loss_hist_tbbtt, perplexity_hist_tbbtt = train_tbbtt(
-        model2, dataloader, 5, criterion,
-        truncate_length=25, lr=1e-3,
-        print_every=1, clip=1
+        model_tbtt, dataloader, 5, criterion,
+        truncate_length=40, lr=1e-3,
+        print_every=1, clip=0.5
     )
 
     '''
@@ -500,14 +499,14 @@ if __name__ == "__main__":
     plot_metrics(loss_hist_tbbtt, perplexity_hist_tbbtt, "TBPTT ")
 
     '''
-    Evaluate TBPTT model performance
+    Evaluate Standard model performance
     '''
     print("\nInitial prompt:", prompt_text)
 
     # Test random sampling generation
     print("\nGenerated sequences using random sampling (topk=5):")
     for i in range(3):
-        generated_indices = sample(model2, prompt_indices, word_to_int['<EOS>'], 
+        generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'], 
                                  sample_method='random', topk=5)
         generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
         print(f"Sequence {i+1}: {generated_text}")
@@ -515,7 +514,7 @@ if __name__ == "__main__":
     # Test greedy generation strategy
     print("\nGenerated sequences using greedy strategy:")
     for i in range(3):
-        generated_indices = sample(model2, prompt_indices, word_to_int['<EOS>'],
+        generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'],
                                  sample_method='argmax')
         generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
         print(f"Sequence {i+1}: {generated_text}")
