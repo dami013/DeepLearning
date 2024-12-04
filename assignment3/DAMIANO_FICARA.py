@@ -1,9 +1,7 @@
-
 """
 Assignment 3 - Language Models with LSTM
 Author: Damiano Ficara
 """
-
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,6 +12,7 @@ from datasets import load_dataset
 from torch import nn
 from torch import optim
 from torch.functional import F
+
 
 # Set random seed for reproducibility
 seed = 42
@@ -30,7 +29,7 @@ def keys_to_values(keys, map, default_if_missing=None):
 
 
 '''
-Q6 - Dataset class
+Q6 - Dataset class for managing news headline sequences
 '''
 class NewsSDataset(Dataset):
     def __init__(self, tokenized_sequences, word_to_int):
@@ -41,7 +40,7 @@ class NewsSDataset(Dataset):
         """
         self.sequences = []
         
-        # Convert words to integers and store
+        # Transform word sequences into integer sequences using vocabulary mapping
         for seq in tokenized_sequences:
             int_seq = [word_to_int.get(word, word_to_int['<EOS>']) for word in seq]
             self.sequences.append(int_seq)
@@ -51,26 +50,26 @@ class NewsSDataset(Dataset):
     
     def __getitem__(self, idx):
         """Returns (x, y) where:
-           x = sequence except last word
-           y = sequence except first word
+           x = input sequence (all tokens except last)
+           y = target sequence (all tokens except first)
         """
         sequence = self.sequences[idx]
         return (
-            torch.tensor(sequence[:-1]),  # all but not  the last
-            torch.tensor(sequence[1:])    # all but not  the first
+            torch.tensor(sequence[:-1]),  # Input sequence for model
+            torch.tensor(sequence[1:])    # Target sequence for prediction
         )
 
 def collate_fn(batch, pad_value):
     """
-    Pads sequences in batch to same length
+    Pads sequences in batch to same length for efficient processing
     Args:
         batch: List of (x, y) tuples from dataset
         pad_value: Integer index for PAD token
     """
-    # Separate xs and ys
+    # Split input and target sequences
     x_seqs, y_seqs = zip(*batch)
     
-    # Pad sequences to max length in batch
+    # Pad all sequences to match the longest sequence in the batch
     x_padded = pad_sequence(x_seqs, batch_first=True, padding_value=pad_value)
     y_padded = pad_sequence(y_seqs, batch_first=True, padding_value=pad_value)
     
@@ -78,39 +77,39 @@ def collate_fn(batch, pad_value):
 
 
 '''
-Q6 - Model class
+Q7 - LSTM Model Implementation
 '''
 class Model(nn.Module):
     def __init__(self, map, hidden_size=1024, emb_dim=150, n_layers=1):
         super(Model, self).__init__()
 
-        self.vocab_size  = len(map)
+        self.vocab_size = len(map)
         self.hidden_size = hidden_size
-        self.emb_dim     = emb_dim
-        self.n_layers    = n_layers
+        self.emb_dim = emb_dim
+        self.n_layers = n_layers
 
-        # dimensions: batches x seq_length x emb_dim
+        # Word embedding layer: converts token indices to dense vectors
         self.embedding = nn.Embedding(
             num_embeddings=self.vocab_size,
-            embedding_dim =self.emb_dim,
+            embedding_dim=self.emb_dim,
             padding_idx=map["PAD"])
 
+        # LSTM layer for sequence processing
         self.lstm = nn.LSTM(
-                    input_size =self.emb_dim,
-                    hidden_size=self.hidden_size,
-                    num_layers =self.n_layers,
-                    batch_first=True)
-                
-    
+            input_size=self.emb_dim,
+            hidden_size=self.hidden_size,
+            num_layers=self.n_layers,
+            batch_first=True)
+        
+        # Final linear layer for vocabulary prediction
         self.fc = nn.Linear(
-            in_features =self.hidden_size,
+            in_features=self.hidden_size,
             out_features=self.vocab_size)
 
     def forward(self, x, prev_state):
         embed = self.embedding(x)
-        yhat, state = self.lstm(embed, prev_state)   # yhat is the full sequence prediction, while state is the last hidden state (coincides with yhat[-1] if n_layers=1)
-
-        out = self.fc(yhat)
+        yhat, state = self.lstm(embed, prev_state)   # Process sequence through LSTM
+        out = self.fc(yhat)                          # Project to vocabulary size
         return out, state
 
     def init_state(self, b_size=1):
@@ -118,35 +117,34 @@ class Model(nn.Module):
                 torch.zeros(self.n_layers, b_size, self.hidden_size))
 
 '''
-Classes for sampling
+Text Generation Functions
 '''
 def random_sample_next(model, x, prev_state, topk=5, uniform=True):
-    # Perform forward-prop and get the output of the last time-step
+    # Generate predictions and select next token using random sampling
     out, state = model(x.to(DEVICE), prev_state=tuple(s.to(DEVICE) for s in prev_state))
-    last_out = out[0, -1, :]    # vocabulary values of last element of sequence
+    last_out = out[0, -1, :]    # Get predictions for last position
     
-    # Get the top-k indexes and their values
+    # Select top-k most likely tokens
     topk = topk if topk else last_out.shape[0]
     top_logit, top_ix = torch.topk(last_out, k=topk, dim=-1)
     
-    # Get the softmax of the topk's and sample
+    # Calculate sampling probabilities
     p = None if uniform else F.softmax(top_logit, dim=-1).cpu().detach().numpy()
     
-    # top_ix deve essere su CPU per numpy.random.choice
+    # Sample next token from top-k predictions
     sampled_ix = np.random.choice(top_ix.cpu().numpy(), p=p)
     
     return sampled_ix, state
 
 def sample_argmax(model, x, prev_state):
-    # Perform forward-prop and get the output of the last time-step
+    # Generate predictions and select next token using greedy strategy
     out, state = model(x.to(DEVICE), prev_state=tuple(s.to(DEVICE) for s in prev_state))
-    # Get last timestep prediction and find highest probability word
-    last_pred = out[:, -1, :]  # shape: [batch_size, vocab_size]
-    next_word = torch.argmax(last_pred, dim=-1).item()
+    last_pred = out[:, -1, :]  # Get predictions for last position
+    next_word = torch.argmax(last_pred, dim=-1).item()  # Select most likely token
     
     return next_word, state
 
-def sample(model, prompt,stop_on, sample_method='random', topk=5, max_seqlen=18):
+def sample(model, prompt, stop_on, sample_method='random', topk=5, max_seqlen=18):
     prompt = prompt if isinstance(prompt, (list, tuple)) else [prompt]
 
     model.eval()
@@ -155,26 +153,26 @@ def sample(model, prompt,stop_on, sample_method='random', topk=5, max_seqlen=18)
         x = torch.tensor([prompt])
         prev_state = model.init_state(b_size=1)
         
+        # Generate tokens until max length or stop token
         for t in range(max_seqlen - len(prompt)):
             if sample_method == 'argmax':
-                # For argmax, set topk=1 and uniform=False
+                # Use greedy selection
                 sampled_ix, prev_state = sample_argmax(model, x, prev_state)
             else:
-                # For random, use provided topk and uniform sampling
+                # Use random sampling from top-k
                 sampled_ix, prev_state = random_sample_next(model, x, prev_state, topk=topk)
 
             sampled_ix_list.append(sampled_ix)
             x = torch.tensor([[sampled_ix]])
-
-            
             
             if sampled_ix == stop_on:
                 break
 
     model.train()
     return sampled_ix_list
+
 '''
-Function for normal training
+Standard Training Implementation
 '''
 def train(model, data, num_epochs, criterion, lr=0.001, print_every=50, clip=None):
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -183,7 +181,7 @@ def train(model, data, num_epochs, criterion, lr=0.001, print_every=50, clip=Non
     criterion = criterion.to(DEVICE)
     model.train()
 
-    
+    # Track training metrics
     loss_hist = []
     generated_text_list = []
     perplexity_hist = []
@@ -191,42 +189,41 @@ def train(model, data, num_epochs, criterion, lr=0.001, print_every=50, clip=Non
     
     total_batches = len(data)
     epoch = 0
+    
+    # Training loop
     while epoch < num_epochs:
         epoch += 1
         epoch_loss = 0.0
         
+        # Process each batch
         for batch_idx, (x, y) in enumerate(data, 1):
             x = x.to(DEVICE)
             y = y.to(DEVICE)
             optimizer.zero_grad()
             
-            # Initialize hidden state
+            # Initialize LSTM state
             prev_state = model.init_state(b_size=x.shape[0])
             prev_state = tuple(s.to(DEVICE) for s in prev_state)
             
-            # Forward pass
+            # Forward pass and loss computation
             out, state = model(x, prev_state=prev_state)
-            
-            # Reshape output for CrossEntropyLoss [batch_size, vocab_size, sequence_length]
             loss_out = out.permute(0, 2, 1)
-            
-            # Calculate loss
             loss = criterion(loss_out, y)
             epoch_loss += loss.item()
+            
             # Backward pass and optimization
             loss.backward()
             if clip:
                 nn.utils.clip_grad_norm_(model.parameters(), clip)
             optimizer.step()
         
-        # Calculate average loss for the epoch
+        # Calculate and store metrics
         avg_epoch_loss = epoch_loss / total_batches
         loss_hist.append(avg_epoch_loss)
-        
-        # Calculate perplexity directly from cross-entropy loss
         perplexity = torch.exp(torch.tensor(avg_epoch_loss))
         perplexity_hist.append(perplexity.item())
         
+        # Print progress and generate sample text
         if print_every and (epoch % print_every) == 0:
             print(f"Epoch: {epoch}/{num_epochs}, Loss: {avg_epoch_loss:8.4f}, Perplexity: {perplexity:8.4f}")
             generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'], sample_method='argmax')
@@ -239,6 +236,7 @@ def train(model, data, num_epochs, criterion, lr=0.001, print_every=50, clip=Non
             print(f"\nTarget loss of 1.5 reached at epoch {epoch}!")
             break
         
+    # Print generation progress examples
     if len(generated_text_list) > 0:
         print("Beginning list:", generated_text_list[0])
         middle_index = len(generated_text_list) // 2
@@ -246,8 +244,9 @@ def train(model, data, num_epochs, criterion, lr=0.001, print_every=50, clip=Non
         print("End list:", generated_text_list[-1])
         
     return model, loss_hist, perplexity_hist
+
 '''
-Function for tbbtt training
+Truncated Backpropagation Through Time (TBPTT) Training Implementation
 '''
 def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001, print_every=50, clip=None):
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -255,6 +254,7 @@ def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001
     criterion = criterion.to(DEVICE)
     model.train()
     
+    # Initialize tracking metrics
     loss_hist = []
     generated_text_list = []
     perplexity_hist = []
@@ -263,10 +263,12 @@ def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001
     total_batches = len(data)
     epoch = 0
     
+    # Training loop with TBPTT
     while epoch < num_epochs:
         epoch += 1
         epoch_loss = 0.0
         
+        # Process each batch
         for batch_idx, (x, y) in enumerate(data, 1):
             x = x.to(DEVICE)
             y = y.to(DEVICE)
@@ -274,56 +276,50 @@ def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001
             # Get sequence length for current batch
             seq_length = x.size(1)
             
-            # Initialize hidden state
+            # Initialize LSTM state
             current_state = model.init_state(b_size=x.shape[0])
             current_state = tuple(s.to(DEVICE) for s in current_state)
             
-            # Process sequence in chunks
+            # Process sequence in chunks for TBPTT
             chunk_losses = []
             for chunk_start in range(0, seq_length, truncate_length):
                 optimizer.zero_grad()
                 
-                # Get chunk end index
+                # Get chunk boundaries
                 chunk_end = min(chunk_start + truncate_length, seq_length)
                 
-                # Extract chunks from input and target
+                # Extract current chunk
                 chunk_x = x[:, chunk_start:chunk_end]
                 chunk_y = y[:, chunk_start:chunk_end]
                 
-                # Forward pass with current state
+                # Forward pass on chunk
                 chunk_out, new_state = model(chunk_x, prev_state=current_state)
-                
-                # Reshape output for loss calculation
                 loss_out = chunk_out.permute(0, 2, 1)
                 
-                # Calculate loss for this chunk
+                # Compute loss for current chunk
                 loss = criterion(loss_out, chunk_y)
                 chunk_losses.append(loss.item())
                 
-                # Backward pass
+                # Backward pass and optimization
                 loss.backward()
-                
-                # Gradient clipping if specified
                 if clip:
                     nn.utils.clip_grad_norm_(model.parameters(), clip)
-                
                 optimizer.step()
                 
-                # Detach the state for next chunk (important for TBPTT)
+                # Update state for next chunk
                 current_state = tuple(s.detach() for s in new_state)
             
-            # Average loss over chunks for this batch
+            # Average chunk losses for this batch
             batch_loss = sum(chunk_losses) / len(chunk_losses)
             epoch_loss += batch_loss
         
-        # Calculate average loss for the epoch
+        # Calculate and store metrics
         avg_epoch_loss = epoch_loss / total_batches
         loss_hist.append(avg_epoch_loss)
-        
-        # Calculate perplexity
         perplexity = torch.exp(torch.tensor(avg_epoch_loss))
         perplexity_hist.append(perplexity.item())
         
+        # Print progress and generate sample text
         if print_every and (epoch % print_every) == 0:
             print(f"Epoch: {epoch}/{num_epochs}, Loss: {avg_epoch_loss:8.4f}, Perplexity: {perplexity:8.4f}")
             generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'], sample_method='argmax')
@@ -336,6 +332,7 @@ def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001
             print(f"\nTarget loss of 1.5 reached at epoch {epoch}!")
             break
     
+    # Print generation progress examples
     if len(generated_text_list) > 0:
         print("\nGeneration progress throughout training:")
         print("Beginning:", generated_text_list[0])
@@ -344,13 +341,15 @@ def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001
         print("End:", generated_text_list[-1])
     
     return model, loss_hist, perplexity_hist
+
 '''
-Function for plotting
+Visualization Functions
 '''
 def plot_metrics(loss_hist, perplexity_hist, title_prefix=""):
-    """Plot training metrics."""
+    """Plot training metrics to visualize model progress."""
     plt.figure(figsize=(12, 5))
     
+    # Plot loss history
     plt.subplot(1, 2, 1)
     plt.plot(loss_hist, label='Training Loss')
     plt.axhline(y=1.5, color='r', linestyle='--', label='Target Loss')
@@ -360,6 +359,7 @@ def plot_metrics(loss_hist, perplexity_hist, title_prefix=""):
     plt.legend()
     plt.grid(True)
     
+    # Plot perplexity history
     plt.subplot(1, 2, 2)
     plt.plot(perplexity_hist, label='Perplexity')
     plt.xlabel('Epoch')
@@ -367,60 +367,62 @@ def plot_metrics(loss_hist, perplexity_hist, title_prefix=""):
     plt.title(f'{title_prefix}Perplexity Over Time')
     plt.legend()
     plt.grid(True)
-    
-    plt.tight_layout()
-    plt.show()
+
 
 if __name__ == "__main__":
-    # Set device
+    # Set device based on available hardware
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'mps' 
         if torch.backends.mps.is_available() else 'cpu')
     
     '''
-    Q1 - Dataset Loading 
+    Q1 - Load the news category dataset
     '''
     ds = load_dataset("heegyu/news-category-dataset")
+
     '''
-    Q2 - Dataset Filtering 
+    Q2 - Filter dataset to only include POLITICS category
     '''
     ds = ds['train'].filter(lambda x: x['category'] == 'POLITICS')
     print(len(ds))
     
     '''
-    Q3 - Tokenization
+    Q3 - Tokenize headlines and add EOS token
     '''
     tokenized_text = []
     for title in ds['headline']:
         words = title.lower().split()
-        words.append('<EOS>')
+        words.append('<EOS>')  # Add end-of-sequence token
         tokenized_text.append(words)
+
     '''
-    Q4 - Top 5 Words
+    Q4 - Build vocabulary and find most common words
     '''
+    # Count word frequencies
     word_freq = {}
     for sequence in tokenized_text:
         for word in sequence:
             word_freq[word] = word_freq.get(word, 0) + 1
 
-    # Sort words by frequency
+    # Sort words by frequency for vocabulary creation
     sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
 
-    # Create word to int mapping with special tokens at start/end
-    word_to_int = {'<EOS>': 0}  # EOS token at index 0
+    # Create mappings between words and integers
+    word_to_int = {'<EOS>': 0}  # Start with special tokens
     current_idx = 1
 
     for word, freq in sorted_words:
-        if word != '<EOS>':  # Skip EOS since already added
+        if word != '<EOS>':  # Skip EOS token as already added
             word_to_int[word] = current_idx
             current_idx += 1
             
-    word_to_int['PAD'] = len(word_to_int)  # PAD token at end
+    word_to_int['PAD'] = len(word_to_int)  # Add padding token last
 
-    # Create reverse mapping
+    # Create reverse mapping (integer to word)
     int_to_word = {i: word for word, i in word_to_int.items()}
 
-    # Get 5 most common words (no PAD or EO5)
-    top_5_words = [(word, freq) for word, freq in sorted_words[:6] if word not in ['<EOS>', 'PAD']]
+    # Find and print most common words
+    top_5_words = [(word, freq) for word, freq in sorted_words[:6] 
+                   if word not in ['<EOS>', 'PAD']]
 
     print("5 most common words:")
     for word, freq in top_5_words:
@@ -429,9 +431,9 @@ if __name__ == "__main__":
     print(f"\nTotal vocabulary size (including special tokens): {len(word_to_int)}")  
     
     '''
-    Q5-Q6 - Initialization Dataset and DataLoader
+    Q5-Q6 - Create dataset and dataloader instances
     '''
-    # Create dataset and dataloader
+    # Initialize dataset with batch processing
     batch_size = 32
     dataset = NewsSDataset(tokenized_text, word_to_int)
     dataloader = DataLoader(dataset, batch_size=batch_size,
@@ -439,73 +441,82 @@ if __name__ == "__main__":
                           shuffle=True)
     
     '''
-    Initialization Model
+    Initialize base model for evaluation
     '''
-    # Train standard model
+    # Create model instance
     model = Model(word_to_int).to(DEVICE)
     criterion = nn.CrossEntropyLoss(ignore_index=word_to_int["PAD"])
+
     '''
-    Evaluation Model Not Trained
+    Evaluate untrained model performance
     '''
+    # Test model with sample prompt
     prompt_text = "the president wants"
     prompt_indices = keys_to_values(prompt_text.split(), word_to_int)
-    print("\nPrompt iniziale:", prompt_text)
+    print("\nInitial prompt:", prompt_text)
 
-    # 3. Test con sampling random
-    print("\nGenerazione con sampling casuale (random):")
+    # Test random sampling generation
+    print("\nGenerated sequences using random sampling (topk=5):")
     for i in range(3):
-        # Genera sequenza
-        generated_indices = sample(model, prompt_indices,word_to_int['<EOS>'], sample_method='random', topk=5)
-        # Converti indici in parole usando keys_to_values
+        generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'], 
+                                 sample_method='random', topk=5)
         generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
-        print(f"Sequenza {i+1}: {generated_text}")
+        print(f"Sequence {i+1}: {generated_text}")
 
-    # 4. Test con strategia greedy
-    print("\nGenerazione con strategia greedy (argmax):")
+    # Test greedy generation strategy
+    print("\nGenerated sequences using greedy strategy:")
     for i in range(3):
-        generated_indices = sample(model, prompt_indices,word_to_int['<EOS>'],sample_method='argmax')
+        generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'],
+                                 sample_method='argmax')
         generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
-        print(f"Sequenza {i+1}: {generated_text}")
+        print(f"Sequence {i+1}: {generated_text}")
+
     '''
-    Train Model
+    Train standard model
     '''
+    # Train model using standard training approach
     model, loss_hist, perplexity_hist = train(model, dataloader, 12, criterion, 
-                                            lr=1e-3, print_every=1, clip=1)
+                                             lr=1e-3, print_every=1, clip=1)
+
     '''
-    Plot Train Model
+    Visualize standard training results
     '''
     plot_metrics(loss_hist, perplexity_hist, "Standard ")
+
     '''
-    Initialization Model TBBTT
+    Initialize and train model using TBPTT
     '''
-    # Train TBBTT model
+    # Create new model with larger hidden size for TBPTT
     model2 = Model(word_to_int, hidden_size=2048).to(DEVICE)
     model2, loss_hist_tbbtt, perplexity_hist_tbbtt = train_tbbtt(
         model2, dataloader, 5, criterion,
         truncate_length=25, lr=1e-3,
         print_every=1, clip=1
     )
-    '''
-    Plot Model TBBTT
-    '''
-    plot_metrics(loss_hist_tbbtt, perplexity_hist_tbbtt, "TBBTT ")
-    '''
-    Evaluation Model TBTT Trained
-    '''
-    print("\nPrompt iniziale:", prompt_text)
 
-    # 3. Test with sampling random
-    print("\nGenerazione con sampling casuale (random):")
-    for i in range(3):
-        # Gerate sequence
-        generated_indices = sample(model2, prompt_indices,word_to_int['<EOS>'], sample_method='random', topk=5)
-        # Convert indixes in word using keys to values
-        generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
-        print(f"Sequenza {i+1}: {generated_text}")
+    '''
+    Visualize TBPTT training results
+    '''
+    plot_metrics(loss_hist_tbbtt, perplexity_hist_tbbtt, "TBPTT ")
 
-    # 4. Test con strategia greedy
-    print("\nGenerazione con strategia greedy (argmax):")
+    '''
+    Evaluate TBPTT model performance
+    '''
+    print("\nInitial prompt:", prompt_text)
+
+    # Test random sampling generation
+    print("\nGenerated sequences using random sampling (topk=5):")
     for i in range(3):
-        generated_indices = sample(model2, prompt_indices,word_to_int['<EOS>'],sample_method='argmax')
+        generated_indices = sample(model2, prompt_indices, word_to_int['<EOS>'], 
+                                 sample_method='random', topk=5)
         generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
-        print(f"Sequenza {i+1}: {generated_text}")
+        print(f"Sequence {i+1}: {generated_text}")
+
+    # Test greedy generation strategy
+    print("\nGenerated sequences using greedy strategy:")
+    for i in range(3):
+        generated_indices = sample(model2, prompt_indices, word_to_int['<EOS>'],
+                                 sample_method='argmax')
+        generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
+        print(f"Sequence {i+1}: {generated_text}")
+
