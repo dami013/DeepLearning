@@ -259,83 +259,93 @@ def train_tbbtt(model, data, num_epochs, criterion, chunk_len, lr=0.001, print_e
     model = model.to(DEVICE)
     criterion = criterion.to(DEVICE)
     model.train()
-
+    
+    # Initialize tracking metrics
     loss_hist = []
     generated_text_list = []
     perplexity_hist = []
     optimizer = optim.Adam(model.parameters(), lr=lr)
-
+    
     total_batches = len(data)
     epoch = 0
-
+    
+    # Training loop with TBPTT
     while epoch < num_epochs:
         epoch += 1
         epoch_loss = 0.0
         
+        # Process each batch
         for batch_idx, (x, y) in enumerate(data, 1):
             x = x.to(DEVICE)
             y = y.to(DEVICE)
-            batch_size = x.size(0)
+            
+            # Get sequence length for current batch
             seq_length = x.size(1)
             
-            hidden = model.init_state(b_size=batch_size)
-            hidden = tuple(s.to(DEVICE) for s in hidden)
+            # Initialize LSTM state
+            current_state = model.init_state(b_size=x.shape[0])
+            current_state = tuple(s.to(DEVICE) for s in current_state)
             
-            batch_loss = 0
-            
+            # Process sequence in chunks for TBPTT
+            chunk_losses = []
             for chunk_start in range(0, seq_length, chunk_len):
                 optimizer.zero_grad()
                 
+                # Get chunk boundaries
                 chunk_end = min(chunk_start + chunk_len, seq_length)
-                chunk_len = chunk_end - chunk_start
                 
+                # Extract current chunk
                 chunk_x = x[:, chunk_start:chunk_end]
                 chunk_y = y[:, chunk_start:chunk_end]
                 
-                hidden = tuple(h.detach() for h in hidden)
+                # Forward pass on chunk
+                chunk_out, new_state = model(chunk_x, prev_state=current_state)
+                loss_out = chunk_out.permute(0, 2, 1)
                 
-                chunk_output, hidden = model(chunk_x, prev_state=hidden)
-                loss_out = chunk_output.permute(0, 2, 1)
+                # Compute loss for current chunk
                 loss = criterion(loss_out, chunk_y)
+                chunk_losses.append(loss.item())
                 
+                # Backward pass and optimization
                 loss.backward()
-                
                 if clip:
                     nn.utils.clip_grad_norm_(model.parameters(), clip)
-                    
                 optimizer.step()
                 
-                batch_loss += loss.item() * chunk_len
+                # Update state for next chunk
+                current_state = tuple(s.detach() for s in new_state)
             
-            batch_loss /= seq_length
+            # Average chunk losses for this batch
+            batch_loss = sum(chunk_losses) / len(chunk_losses)
             epoch_loss += batch_loss
-
-        # Calculate and store epoch metrics
+        
+        # Calculate and store metrics
         avg_epoch_loss = epoch_loss / total_batches
         loss_hist.append(avg_epoch_loss)
         perplexity = torch.exp(torch.tensor(avg_epoch_loss))
         perplexity_hist.append(perplexity.item())
-
-         # Print progress and generate sample text
+        
+        # Print progress and generate sample text
         if print_every and (epoch % print_every) == 0:
             print(f"Epoch: {epoch}/{num_epochs}, Loss: {avg_epoch_loss:8.4f}, Perplexity: {perplexity:8.4f}")
             generated_indices = sample(model, prompt_indices, word_to_int['<EOS>'], sample_method='argmax')
             generated_text = " ".join(keys_to_values(generated_indices, int_to_word))
             generated_text_list.append(generated_text)
             print(f"Generated text: {generated_text}\n")
-
+        
         # Early stopping check
         if avg_epoch_loss < 1.5:
             print(f"\nTarget loss of 1.5 reached at epoch {epoch}!")
             break
-
+    
     # Print generation progress examples
     if len(generated_text_list) > 0:
-        print("Beginning list:", generated_text_list[0])
+        print("\nGeneration progress throughout training:")
+        print("Beginning:", generated_text_list[0])
         middle_index = len(generated_text_list) // 2
-        print("Middle list:", generated_text_list[middle_index])
-        print("End list:", generated_text_list[-1])
-
+        print("Middle:", generated_text_list[middle_index])
+        print("End:", generated_text_list[-1])
+    
     return model, loss_hist, perplexity_hist
 
 '''
