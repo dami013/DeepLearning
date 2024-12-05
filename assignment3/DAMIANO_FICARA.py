@@ -334,7 +334,7 @@ def train_tbbtt(model, data, num_epochs, criterion, truncate_length=50, lr=0.001
     return model, loss_hist, perplexity_hist
 
 '''
-Visualization Functions
+Visualization Function
 '''
 def plot_metrics(loss_hist, perplexity_hist, title_prefix=""):
     """Plot training metrics to visualize model progress."""
