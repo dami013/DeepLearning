@@ -404,7 +404,6 @@ if __name__ == "__main__":
         words = title.lower().split()
         words.append('<EOS>')  # Add end-of-sequence token
         tokenized_text.append(words)
-
     '''
     Q4 - Build vocabulary and find most common words
     '''
